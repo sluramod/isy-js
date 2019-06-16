@@ -1,6 +1,6 @@
 {
   "name": "isy-js",
-  "description": "Javascript wrapper for ISY interface including websockets for change notifications. Designed to be used in a node.js application. No longer under active development by original author. Limited development by contributors: shbatm",
+  "description": "Javascript wrapper for ISY interface including websockets for change notifications. Designed to be used in a node.js application. No longer under active development by original author. Limited development by contributors: shbatm, sluramod",
   "license": "MIT",
   "version": "0.6.2",
   "author": {
@@ -11,6 +11,10 @@
     {
       "name": "shbatm",
       "email": "18057952+shbatm@users.noreply.github.com"
+    },
+    {
+      "name": "sluramod",
+      "email": "665418+sluramod@users.noreply.github.com"
     },
     {
       "name": "TenStartups"
@@ -24,22 +28,28 @@
     "universal devices",
     "insteon"
   ],
-  "main": "isy.js",
+  "files": ["lib/"],
+  "main": "lib/isy.js",
   "devDependencies": {
-    "mocha": "",
-    "fake-isy-994i": ""
+    "@types/restler": "^3.1.5",
+    "@types/ws": "^6.0.1",
+    "@types/xml2js": "^0.4.4",
+    "@types/xmldoc": "^1.1.4",
+    "fake-isy-994i": "^0.2.2",
+    "mocha": "^6.1.4"
   },
   "dependencies": {
-    "faye-websocket": "",
-    "restler": "",
+    "@types/node": "^12.0.8",
+    "restler": "^3.4.0",
+    "ws": "^7.0.0",
     "xml2js": "^0.4.19",
-    "xmldoc": ""
+    "xmldoc": "^1.1.2"
   },
   "bugs": {
-    "url": "https://github.com/shbatm/isy-js/issues"
+    "url": "https://github.com/sluramod/isy-js/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/shbatm/isy-js.git"
+    "url": "https://github.com/sluramod/isy-js.git"
   }
 }

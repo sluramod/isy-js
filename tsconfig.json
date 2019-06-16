@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es6",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "outDir": "lib",
+    "declaration": true
+  },
+  "files": [
+    "*.ts",
+    "isydefs.json",
+    "isydevicetypes.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
+}
