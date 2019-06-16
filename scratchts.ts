@@ -1,6 +1,6 @@
 // File for scratch testing. Will be removed in the future at is for my own internal purposes
 
-import {ISY} from "./isy";
+import {ISY} from "./index";
 import {ISYNode} from "./isynode";
 
 function handleInitialized() {

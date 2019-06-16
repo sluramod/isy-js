@@ -826,7 +826,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
         this.webSocket = new WebSocket(
             this.wsprotocol + '://' + this.address + '/rest/subscribe', ['ISYSUB'], {
                 headers: {
-                    'Origin': 'com.universal-devices.websockets.isy',
+                    'Origin': 'com.universal-devices.websockets.index.ts',
                     'Authorization': auth
                 }
             });

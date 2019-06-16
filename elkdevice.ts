@@ -1,4 +1,4 @@
-import {ISYCommandSender} from "./isy";
+import {ISYCommandSender} from "./index";
 import {ISYConnectionType, ISYDeviceType} from "./isydevice";
 import {ISYCallback, ISYNode} from "./isynode";
 

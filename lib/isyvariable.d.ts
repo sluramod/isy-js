@@ -1,4 +1,4 @@
-import { ISYSetVariableSender } from "./isy";
+import { ISYSetVariableSender } from "./index";
 import { ISYCallback } from "./isynode";
 export declare type ISYGetVariableCallback = (value: number | undefined, init: number | undefined) => void;
 export declare class ISYVariable {

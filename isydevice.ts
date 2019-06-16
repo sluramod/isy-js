@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 import * as ISYDefs from './isydefs.json'
-import {ISYRestCommandSender} from "./isy";
+import {ISYRestCommandSender} from "./index";
 import {ISYCallback, ISYDeviceInfo, ISYNode, ISYNodeProperties} from "./isynode";
 
 export type ISYDeviceType = "lock" | "secureLock" | "light" | "dimmableLight" | "outlet" | "fan" | "unknown" |

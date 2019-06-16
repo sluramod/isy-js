@@ -1,5 +1,5 @@
 import { ISYBaseDevice, ISYConnectionType, ISYDeviceType, ISYType } from "./isydevice";
-import { ISYRestCommandSender } from "./isy";
+import { ISYRestCommandSender } from "./index";
 import { ISYCallback, ISYNode } from "./isynode";
 export declare class ISYScene implements ISYNode {
     isy: ISYRestCommandSender;

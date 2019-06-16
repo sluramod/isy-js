@@ -1,4 +1,4 @@
-import { ISYRestCommandSender } from "./isy";
+import { ISYRestCommandSender } from "./index";
 import { ISYCallback, ISYDeviceInfo, ISYNode, ISYNodeProperties } from "./isynode";
 export declare type ISYDeviceType = "lock" | "secureLock" | "light" | "dimmableLight" | "outlet" | "fan" | "unknown" | "doorWindowSensor" | "alarmDoorWindowSensor" | "coSensor" | "alarmPanel" | "motionSensor" | "leakSensor" | "remote" | "scene" | "thermostat" | "nodeServerNode";
 export declare type ISYType = string;

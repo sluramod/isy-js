@@ -1,6 +1,6 @@
 import * as ISYDefs from './isydefs.json'
 import {ISYBaseDevice, ISYConnectionType, ISYDeviceType, ISYLightDevice, ISYType} from "./isydevice";
-import {ISYRestCommandSender} from "./isy";
+import {ISYRestCommandSender} from "./index";
 import {ISYCallback, ISYNode} from "./isynode";
 
 export class ISYScene implements ISYNode {
