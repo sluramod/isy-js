@@ -84,7 +84,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     scenesInDeviceList: boolean
 
-    defs: typeof ISYDefs
+    //defs: typeof ISYDefs
     lastActivity: number | null
 
     guardianTimer: NodeJS.Timeout | null
@@ -114,7 +114,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
             this.elkAlarmPanel = new ELKAlarmPanelDevice(this, 1);
         }
         this.changeCallback = changeCallback;
-        this.defs = ISYDefs;
+        //this.defs = ISYDefs;
     }
 
     logger(msg: string) {

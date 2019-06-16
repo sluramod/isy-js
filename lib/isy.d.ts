@@ -1,7 +1,6 @@
 /// <reference types="node" />
 import * as WebSocket from 'ws';
 import { ServerResponse } from "http";
-import * as ISYDefs from './isydefs.json';
 import { ISYBaseDevice, ISYDeviceType, ISYDoorWindowDevice, ISYFanDevice, ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice, ISYMotionSensorDevice, ISYOutletDevice, ISYRemoteDevice, ISYThermostatDevice, ISYType } from "./isydevice";
 import { ISYGetVariableCallback, ISYVariable } from "./isyvariable";
 import { ISYScene } from "./isyscene";
@@ -45,7 +44,6 @@ export declare class ISY implements ISYRestCommandSender, ISYSetVariableSender, 
     };
     nodesLoaded: boolean;
     scenesInDeviceList: boolean;
-    defs: typeof ISYDefs;
     lastActivity: number | null;
     guardianTimer: NodeJS.Timeout | null;
     webSocket: WebSocket | null;
