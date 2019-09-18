@@ -1,4 +1,5 @@
 import {ISYConnectionType, ISYDeviceType, ISYType} from "./isydevice";
+import {HasISYAddress} from "./index";
 
 export type ISYCallback = (status: boolean) => void
 
@@ -13,6 +14,8 @@ export interface ISYNodeProperties {
 }
 
 export interface ISYNode {
+
+    isy: HasISYAddress
 
     name: string
     address: string

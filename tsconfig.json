@@ -10,9 +10,11 @@
     "declaration": true
   },
   "files": [
-    "*.ts",
     "isydefs.json",
     "isydevicetypes.json"
+  ],
+  "include": [
+    "*.ts"
   ],
   "exclude": [
     "node_modules",

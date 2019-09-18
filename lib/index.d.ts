@@ -1,26 +1,32 @@
 /// <reference types="node" />
 import * as WebSocket from 'ws';
 import { ServerResponse } from "http";
-import { ISYBaseDevice, ISYDeviceType, ISYDoorWindowDevice, ISYFanDevice, ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice, ISYMotionSensorDevice, ISYOutletDevice, ISYRemoteDevice, ISYThermostatDevice, ISYType } from "./isydevice";
+import { ISYBaseDevice, ISYDeviceType, ISYDoorWindowDevice, ISYFanDevice, ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice, ISYMotionSensorDevice, ISYOutletDevice, ISYRemoteDevice, ISYThermostatDevice, ISYType, ISYFanDeviceState } from "./isydevice";
 import { ISYGetVariableCallback, ISYVariable } from "./isyvariable";
 import { ISYScene } from "./isyscene";
 import { ELKAlarmPanelDevice, ElkAlarmSensor } from "./elkdevice";
 import { ISYCallback, ISYDeviceInfo, ISYNode } from "./isynode";
 import { ISYNodeServerNode } from "./isynodeserver";
-export interface ISYRestCommandSender {
+export interface HasISYAddress {
+    isyAddress: string;
+}
+export interface ISYRestCommandSender extends HasISYAddress {
     sendRestCommand(deviceAddress: string, command: string, parameter: any | null, handleResult: ISYCallback): void;
 }
-export interface ISYSetVariableSender {
+export interface ISYSetVariableSender extends HasISYAddress {
     sendSetVariable(id: string, type: string, value: string, handleResult: ISYCallback): void;
 }
-export interface ISYCommandSender {
+export interface ISYCommandSender extends HasISYAddress {
     sendISYCommand(path: string, handleResult: ISYCallback): void;
 }
-export declare class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYCommandSender {
-    debugLogEnabled: boolean;
-    address: string;
+export declare class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetVariableSender, ISYCommandSender {
+    isyAddress: string;
     userName: string;
     password: string;
+    elkEnabled: boolean;
+    changeCallback: (owner: ISY, what: ISYNode) => void;
+    variableCallback?: ((owner: ISY, variable: ISYVariable) => void) | undefined;
+    debugLogEnabled: boolean;
     protocol: "http" | "https";
     wsprotocol: "ws" | "wss";
     deviceList: ISYNode[];
@@ -35,9 +41,6 @@ export declare class ISY implements ISYRestCommandSender, ISYSetVariableSender, 
     variableIndex: {
         [idx: string]: ISYVariable;
     };
-    variableCallback: ((owner: ISY, variable: ISYVariable) => void) | undefined;
-    changeCallback: (owner: ISY, what: ISYNode) => void;
-    elkEnabled: boolean;
     elkAlarmPanel: ELKAlarmPanelDevice | undefined;
     zoneMap: {
         [idx: string]: ElkAlarmSensor;
@@ -48,16 +51,8 @@ export declare class ISY implements ISYRestCommandSender, ISYSetVariableSender, 
     guardianTimer: NodeJS.Timeout | null;
     webSocket: WebSocket | null;
     pingInterval: NodeJS.Timeout | null;
-    constructor(address: string, username: string, password: string, elkEnabled: false, changeCallback: (owner: ISY, what: ISYNode) => void, useHttps?: boolean, scenesInDeviceList?: boolean, enableDebugLogging?: boolean, variableCallback?: (owner: ISY, variable: ISYVariable) => void);
+    constructor(isyAddress: string, userName: string, password: string, elkEnabled: boolean, changeCallback: (owner: ISY, what: ISYNode) => void, useHttps?: boolean, scenesInDeviceList?: boolean, enableDebugLogging?: boolean, variableCallback?: ((owner: ISY, variable: ISYVariable) => void) | undefined);
     logger(msg: string): void;
-    buildDeviceInfoRecord(isyType: ISYType, deviceFamily: string, deviceType: ISYDeviceType): {
-        type: string;
-        address: string;
-        name: string;
-        deviceType: ISYDeviceType;
-        connectionType: string;
-        batteryOperated: boolean;
-    };
     getDeviceTypeBasedOnISYTable(deviceNode: any): {
         type: string;
         address: string;
@@ -99,4 +94,4 @@ export declare class ISY implements ISYRestCommandSender, ISYSetVariableSender, 
     getSceneList(): ISYScene[];
     getScene(address: string): ISYScene;
 }
-export { ISYCallback, ISYDeviceInfo, ISYNode, ISYBaseDevice, ISYDeviceType, ISYDoorWindowDevice, ISYFanDevice, ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice, ISYMotionSensorDevice, ISYOutletDevice, ISYRemoteDevice, ISYThermostatDevice, ISYType, ISYGetVariableCallback, ISYVariable, ELKAlarmPanelDevice, ElkAlarmSensor, ISYNodeServerNode };
+export { ISYFanDeviceState, ISYCallback, ISYDeviceInfo, ISYNode, ISYBaseDevice, ISYDeviceType, ISYDoorWindowDevice, ISYFanDevice, ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice, ISYMotionSensorDevice, ISYOutletDevice, ISYRemoteDevice, ISYThermostatDevice, ISYType, ISYGetVariableCallback, ISYVariable, ELKAlarmPanelDevice, ElkAlarmSensor, ISYNodeServerNode };

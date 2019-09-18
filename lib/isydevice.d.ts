@@ -12,45 +12,41 @@ export declare class ISYBaseDevice implements ISYNode {
     batteryOperated: boolean;
     connectionType: ISYConnectionType;
     deviceFriendlyName: string;
-    currentState: number;
-    currentState_f: string | number;
     lastChanged: Date;
     updateType: string | null;
     updatedProperty: string | null;
     properties: ISYNodeProperties;
+    currentState: number;
+    currentState_f: number | string;
     constructor(isy: ISYRestCommandSender, name: string, address: string, isyType: ISYType, deviceType: ISYDeviceType, deviceFamily: ISYConnectionType);
     handleIsyUpdate(actionValue: string | number, formatted?: string | number | undefined): boolean;
     handleIsyGenericPropertyUpdate(actionValue: string | number, prop: string, formatted?: string | number | undefined): boolean;
     getGenericProperty(prop: string): any;
-    getCurrentLightState(): boolean;
-    getCurrentLightDimState(): number;
-    sendLightCommand(command: string | boolean | number, resultHandler: ISYCallback): void;
-    sendLightDimCommand(dimLevel: number, resultHandler: ISYCallback): void;
-    getCurrentNonSecureLockState(): boolean;
-    getCurrentSecureLockState(): boolean;
-    sendNonSecureLockCommand(lockState: boolean, resultHandler: ISYCallback): void;
-    sendSecureLockCommand(lockState: boolean, resultHandler: ISYCallback): void;
-    getCurrentDoorWindowState(): boolean;
-    getCurrentOutletState(): boolean;
-    sendOutletCommand(command: boolean | string, resultHandler: ISYCallback): void;
-    getCurrentMotionSensorState(): boolean;
-    getCurrentFanState(): "Off" | "Low" | "Medium" | "High" | undefined;
-    sendFanCommand(fanState: "Off" | "Low" | "Medium" | "High", resultHandler: ISYCallback): void;
 }
 export declare class ISYLightDevice extends ISYBaseDevice {
     isDimmable: boolean;
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
+    getCurrentLightState(): boolean;
+    getCurrentLightDimState(): number;
+    sendLightCommand(command: string | boolean | number, resultHandler: ISYCallback): void;
+    sendLightDimCommand(dimLevel: number, resultHandler: ISYCallback): void;
 }
 export declare class ISYLockDevice extends ISYBaseDevice {
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
     sendLockCommand(lockState: boolean, resultHandler: ISYCallback): void;
     getCurrentLockState(): boolean | undefined;
+    getCurrentNonSecureLockState(): boolean;
+    getCurrentSecureLockState(): boolean;
+    sendNonSecureLockCommand(lockState: boolean, resultHandler: ISYCallback): void;
+    sendSecureLockCommand(lockState: boolean, resultHandler: ISYCallback): void;
 }
 export declare class ISYDoorWindowDevice extends ISYBaseDevice {
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
+    getCurrentDoorWindowState(): boolean;
 }
 export declare class ISYMotionSensorDevice extends ISYBaseDevice {
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
+    getCurrentMotionSensorState(): boolean;
 }
 export declare class ISYLeakSensorDevice extends ISYBaseDevice {
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
@@ -60,9 +56,20 @@ export declare class ISYRemoteDevice extends ISYBaseDevice {
 }
 export declare class ISYOutletDevice extends ISYBaseDevice {
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
+    getCurrentOutletState(): boolean;
+    sendOutletCommand(command: boolean | string, resultHandler: ISYCallback): void;
+}
+export declare enum ISYFanDeviceState {
+    OFF = "off",
+    LOW = "low",
+    MEDIUM = "medium",
+    HIGH = "high"
 }
 export declare class ISYFanDevice extends ISYBaseDevice {
+    deviceType: "fan";
     constructor(isy: ISYRestCommandSender, name: string, address: string, deviceTypeInfo: ISYDeviceInfo);
+    getCurrentFanState(): ISYFanDeviceState;
+    sendFanCommand(fanState: ISYFanDeviceState, resultHandler: ISYCallback): void;
 }
 interface ISYThermostatDeviceResponse {
     currTemp: number;

@@ -4,9 +4,6 @@ import {ISYRestCommandSender} from "./index";
 import {ISYCallback, ISYNode} from "./isynode";
 
 export class ISYScene implements ISYNode {
-    isy: ISYRestCommandSender
-    name: string
-    address: string
     deviceType: ISYDeviceType
 
     isyType: ISYType
@@ -14,29 +11,23 @@ export class ISYScene implements ISYNode {
     batteryOperated: boolean
     deviceFriendlyName: string
 
-    childDevices: ISYBaseDevice[]
-
     lastChanged: Date
 
-    constructor(isy: ISYRestCommandSender, name:string, address:string, childDevices: ISYBaseDevice[]) {
-
-        this.isy = isy;
-        this.name = name;
-        this.address = address;
+    constructor(public isy: ISYRestCommandSender, public name:string, public address:string, public childDevices: ISYBaseDevice[]) {
         this.isyType = '';
         this.connectionType = 'Insteon Wired';
         this.batteryOperated = false;
-        this.childDevices = childDevices;
         this.deviceType = "scene";
         this.deviceFriendlyName = "Insteon Scene";
         this.lastChanged = new Date();
+
         this.reclalculateState();
     }
 
     // Get the current light state
     getCurrentLightState() {
-        for (var i = 0; i < this.childDevices.length; i++) {
-            var device = this.childDevices[i];
+        for (let i = 0; i < this.childDevices.length; i++) {
+            let device = this.childDevices[i];
             if (device instanceof ISYLightDevice) {
                 if (device.getCurrentLightState()) {
                     return true;
@@ -47,10 +38,10 @@ export class ISYScene implements ISYNode {
     }
 
     getCurrentLightDimState() {
-        var lightDeviceCount = 0;
-        var calculatedDimLevel = 0;
-        for (var i = 0; i < this.childDevices.length; i++) {
-            var device = this.childDevices[i];
+        let lightDeviceCount = 0;
+        let calculatedDimLevel = 0;
+        for (let i = 0; i < this.childDevices.length; i++) {
+            let device = this.childDevices[i];
             if (device instanceof ISYLightDevice) {
                 calculatedDimLevel += device.getCurrentLightDimState();
                 lightDeviceCount++;
@@ -73,8 +64,8 @@ export class ISYScene implements ISYNode {
     }
 
     getAreAllLightsInSpecifiedState(state:boolean) {
-        for (var i = 0; i < this.childDevices.length; i++) {
-            var device = this.childDevices[i];
+        for (let i = 0; i < this.childDevices.length; i++) {
+            let device = this.childDevices[i];
             if (device instanceof ISYLightDevice) {
                 if (device.getCurrentLightState() != state) {
                     return false;
@@ -85,7 +76,7 @@ export class ISYScene implements ISYNode {
     }
 
     isDeviceIncluded(device:ISYBaseDevice) {
-        for (var i = 0; i < this.childDevices.length; i++) {
+        for (let i = 0; i < this.childDevices.length; i++) {
             if (this.childDevices[i].address == device.address) {
                 return true;
             }

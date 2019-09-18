@@ -13,7 +13,7 @@ import {
     ISYFanDevice,
     ISYLeakSensorDevice, ISYLightDevice, ISYLockDevice,
     ISYMotionSensorDevice, ISYOutletDevice,
-    ISYRemoteDevice, ISYThermostatDevice, ISYType
+    ISYRemoteDevice, ISYThermostatDevice, ISYType, ISYFanDeviceState
 } from "./isydevice";
 import {ISYGetVariableCallback, ISYVariable} from "./isyvariable";
 import {ISYScene} from "./isyscene";
@@ -27,11 +27,11 @@ function convertToCelsius(value: number) {
 }
 
 function isyTypeToTypeName(isyType: ISYType, address: string): ISYDeviceInfo | null {
-    for (var index = 0; index < isyDeviceTypeList.length; index++) {
+    for (let index = 0; index < isyDeviceTypeList.length; index++) {
         if (isyDeviceTypeList[index].type === isyType) {
-            var addressElementValue = isyDeviceTypeList[index].address;
+            let addressElementValue = isyDeviceTypeList[index].address;
             if (addressElementValue !== '') {
-                var lastAddressNumber = address[address.length - 1];
+                let lastAddressNumber = address[address.length - 1];
                 if (lastAddressNumber !== addressElementValue) {
                     continue;
                 }
@@ -42,25 +42,36 @@ function isyTypeToTypeName(isyType: ISYType, address: string): ISYDeviceInfo | n
     return null;
 }
 
-export interface ISYRestCommandSender {
+export interface HasISYAddress {
+    isyAddress:string
+}
+
+export interface ISYRestCommandSender extends HasISYAddress {
     sendRestCommand(deviceAddress: string, command: string, parameter: any | null, handleResult: ISYCallback): void
 }
 
-export interface ISYSetVariableSender {
+export interface ISYSetVariableSender extends HasISYAddress {
     sendSetVariable(id: string, type: string, value: string, handleResult: ISYCallback): void
 }
 
-export interface ISYCommandSender {
+export interface ISYCommandSender extends HasISYAddress {
     sendISYCommand(path: string, handleResult: ISYCallback): void
 }
 
-export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYCommandSender {
+function buildDeviceInfoRecord(isyType: ISYType, deviceFamily: string, deviceType: ISYDeviceType) {
+    return {
+        type: isyType,
+        address: '',
+        name: 'Generic Device',
+        deviceType: deviceType,
+        connectionType: deviceFamily,
+        batteryOperated: false
+    };
+}
+
+export class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetVariableSender, ISYCommandSender {
     debugLogEnabled: boolean
 
-
-    address: string
-    userName: string
-    password: string
     protocol: "http" | "https"
     wsprotocol: "ws" | "wss"
 
@@ -72,11 +83,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     variableList: ISYVariable[]
     variableIndex: { [idx: string]: ISYVariable }
-    variableCallback: ((owner: ISY, variable: ISYVariable) => void) | undefined
 
-    changeCallback: (owner: ISY, what: ISYNode) => void
-
-    elkEnabled: boolean
     elkAlarmPanel: ELKAlarmPanelDevice | undefined
     zoneMap: { [idx: string]: ElkAlarmSensor }
 
@@ -91,10 +98,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     webSocket: WebSocket | null
     pingInterval: NodeJS.Timeout | null
 
-    constructor(address: string, username: string, password: string, elkEnabled: false, changeCallback: (owner: ISY, what: ISYNode) => void, useHttps?: boolean, scenesInDeviceList?: boolean, enableDebugLogging?: boolean, variableCallback?: (owner: ISY, variable: ISYVariable) => void) {
-        this.address = address;
-        this.userName = username;
-        this.password = password;
+    constructor(public isyAddress: string, public userName: string, public password: string, public elkEnabled: boolean, public changeCallback: (owner: ISY, what: ISYNode) => void, useHttps?: boolean, scenesInDeviceList?: boolean, enableDebugLogging?: boolean, public variableCallback?: (owner: ISY, variable: ISYVariable) => void) {
         this.deviceIndex = {};
         this.deviceList = [];
         this.variableList = [];
@@ -103,50 +107,37 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
         this.nodesLoaded = false;
         this.protocol = (useHttps === true) ? 'https' : 'http';
         this.wsprotocol = (useHttps === true) ? 'wss' : 'ws';
-        this.elkEnabled = elkEnabled;
         this.zoneMap = {};
         this.sceneList = [];
         this.sceneIndex = {};
-        this.debugLogEnabled = (enableDebugLogging === undefined) ? false : enableDebugLogging;
-        this.scenesInDeviceList = (scenesInDeviceList === undefined) ? false : scenesInDeviceList;
+        this.debugLogEnabled = enableDebugLogging || false;
+        this.scenesInDeviceList = scenesInDeviceList || false;
         this.guardianTimer = null;
         if (this.elkEnabled) {
             this.elkAlarmPanel = new ELKAlarmPanelDevice(this, 1);
         }
-        this.changeCallback = changeCallback;
-        //this.defs = ISYDefs;
     }
 
     logger(msg: string) {
         if (this.debugLogEnabled || (process.env.ISYJSDEBUG !== undefined && process.env.ISYJSDEBUG !== null)) {
-            var timeStamp = new Date();
+            let timeStamp = new Date();
             console.log(timeStamp.getFullYear() + '-' + timeStamp.getMonth() + '-' + timeStamp.getDay() + '#' + timeStamp.getHours() + ':' + timeStamp.getMinutes() + ':' + timeStamp.getSeconds() + '- ' + msg);
         }
     }
 
-    buildDeviceInfoRecord(isyType: ISYType, deviceFamily: string, deviceType: ISYDeviceType) {
-        return {
-            type: isyType,
-            address: '',
-            name: 'Generic Device',
-            deviceType: deviceType,
-            connectionType: deviceFamily,
-            batteryOperated: false
-        };
-    }
 
     getDeviceTypeBasedOnISYTable(deviceNode: any) {
-        var familyId = 1;
+        let familyId = 1;
         if (typeof deviceNode.family !== "undefined") {
             familyId = Number(deviceNode.family._);
         }
-        var isyType = deviceNode.type;
-        var addressData = deviceNode.address;
-        var addressElements = addressData.split(' ');
-        var typeElements = isyType.split('.');
-        var mainType = Number(typeElements[0]);
-        var subType = Number(typeElements[1]);
-        var subAddress = Number(addressElements[3]);
+        let isyType = deviceNode.type;
+        let addressData = deviceNode.address;
+        let addressElements = addressData.split(' ');
+        let typeElements = isyType.split('.');
+        let mainType = Number(typeElements[0]);
+        let subType = Number(typeElements[1]);
+        let subAddress = Number(addressElements[3]);
         // ZWave nodes identify themselves with devtype node
         if (typeof deviceNode.devtype !== "undefined") {
             if (typeof deviceNode.devtype.cat !== "undefined") {
@@ -160,31 +151,31 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
             if (mainType === 1) {
                 // Special case fanlinc has a fan element
                 if (subType === 46 && subAddress === 2) {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "fan");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "fan");
                 } else {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "dimmableLight");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "dimmableLight");
                 }
             } else if (mainType === 2) {
                 // Special case appliance Lincs into outlets
                 if (subType === 6 || subType === 9 || subType === 12 || subType === 23) {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
                     // Outlet lincs
                 } else if (subType === 8 || subType === 33) {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
                     // Dual outlets
                 } else if (subType === 57) {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
                 } else {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "light");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "light");
                 }
                 // Sensors
             } else if (mainType === 7) {
                 // I/O Lincs
                 if (subType === 0) {
                     if (subAddress === 1) {
-                        return this.buildDeviceInfoRecord(isyType, 'Insteon', "doorWindowSensor");
+                        return buildDeviceInfoRecord(isyType, 'Insteon', "doorWindowSensor");
                     } else {
-                        return this.buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
+                        return buildDeviceInfoRecord(isyType, 'Insteon', "outlet");
                     }
                     // Other sensors. Not yet supported
                 } else {
@@ -195,7 +186,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 // MorningLinc
                 if (subType === 6) {
                     if (subAddress === 1) {
-                        return this.buildDeviceInfoRecord(isyType, 'Insteon', "lock");
+                        return buildDeviceInfoRecord(isyType, 'Insteon', "lock");
                         // Ignore subdevice which operates opposite for the locks
                     } else {
                         return null;
@@ -208,11 +199,11 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 // Motion sensors
                 if (subType === 1 || subType === 3) {
                     if (subAddress === 1) {
-                        return this.buildDeviceInfoRecord(isyType, "Insteon", "motionSensor");
+                        return buildDeviceInfoRecord(isyType, "Insteon", "motionSensor");
                         // Ignore battery level sensor and daylight sensor
                     }
                 } else if (subType === 2 || subType === 9 || subType === 17) {
-                    return this.buildDeviceInfoRecord(isyType, 'Insteon', "doorWindowSensor");
+                    return buildDeviceInfoRecord(isyType, 'Insteon', "doorWindowSensor");
                     // Smoke, leak sensors, don't yet know how to support
                 } else {
                     return null;
@@ -220,14 +211,14 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 // No idea how to test or support
             } else if (mainType === 5) {
                 // Thermostats
-                return this.buildDeviceInfoRecord(isyType, "Insteon", "thermostat");
+                return buildDeviceInfoRecord(isyType, "Insteon", "thermostat");
             } else if (mainType === 6) {
                 // Leak Sensors
-                return this.buildDeviceInfoRecord(isyType, "Insteon", "leakSensor");
+                return buildDeviceInfoRecord(isyType, "Insteon", "leakSensor");
             } else if (mainType === 0) {
                 if (subType === 6 || subType === 8) {
                     // Insteon Remote
-                    return this.buildDeviceInfoRecord(isyType, "Insteon", "remote");
+                    return buildDeviceInfoRecord(isyType, "Insteon", "remote");
                 } else {
                     return null;
                 }
@@ -240,13 +231,13 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
             if (mainType === 4) {
                 // Identified by user zwave on/off switch
                 if (subType === 16) {
-                    return this.buildDeviceInfoRecord(isyType, 'ZWave', "light");
+                    return buildDeviceInfoRecord(isyType, 'ZWave', "light");
                     // Identified by user door lock
                 } else if (subType === 111) {
-                    return this.buildDeviceInfoRecord(isyType, 'ZWave', "secureLock");
+                    return buildDeviceInfoRecord(isyType, 'ZWave', "secureLock");
                     // This is a guess based on the naming in the ISY SDK
                 } else if (subType === 109) {
-                    return this.buildDeviceInfoRecord(isyType, 'ZWave', "dimmableLight");
+                    return buildDeviceInfoRecord(isyType, 'ZWave', "dimmableLight");
                     // Otherwise we don't know how to handle
                 } else {
                     return null;
@@ -255,14 +246,14 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
         } else if (familyId === 10) {
             // Node Server Node
             if (mainType === 1 && subType === 1) { // Node Server Devices are reported as 1.1.0.0.
-                return this.buildDeviceInfoRecord(isyType, "NodeServer", "nodeServerNode");
+                return buildDeviceInfoRecord(isyType, "NodeServer", "nodeServerNode");
             }
         }
         return null;
     }
 
     nodeChangedHandler(node: ISYNode) {
-        var that = this;
+        let that = this;
         if (this.nodesLoaded) {
             this.changeCallback(that, node);
         }
@@ -279,12 +270,12 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     loadScenes(result: any) {
         for (let scene of result.nodes.group) {
-            var sceneAddress = scene.address;
-            var sceneName = scene.name;
+            let sceneAddress = scene.address;
+            let sceneName = scene.name;
             if (sceneName === "ISY") {
                 continue;
             } // Skip ISY Scene
-            var childDevices: ISYBaseDevice[] = [];
+            let childDevices: ISYBaseDevice[] = [];
             if (typeof scene.members.link === "undefined") {
                 continue; // Skip Empty Scene
             } else if (Array.isArray(scene.members.link)) {
@@ -297,7 +288,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 childDevices.push(scene.members.link._); // Scene with 1 link returned as object.
             }
 
-            var newScene = new ISYScene(this, sceneName, sceneAddress, childDevices);
+            let newScene = new ISYScene(this, sceneName, sceneAddress, childDevices);
             this.sceneList.push(newScene);
             this.sceneIndex[newScene.address] = newScene;
             if (this.scenesInDeviceList) {
@@ -309,12 +300,12 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     loadDevices(result: any) {
         for (let node of result.nodes.node) {
-            var deviceAddress = ("address" in node) ? node.address : "00 00 00 1";
-            var isyDeviceType = ("type" in node) ? node.type : "unknown";
-            var deviceName = ("name" in node) ? node.name : "Unnamed Device";
-            var newDevice: ISYNode | null = null;
-            var deviceTypeInfo = isyTypeToTypeName(isyDeviceType, deviceAddress);
-            var enabled = ("enabled" in node) ? node.enabled : false;
+            let deviceAddress = ("address" in node) ? node.address : "00 00 00 1";
+            let isyDeviceType = ("type" in node) ? node.type : "unknown";
+            let deviceName = ("name" in node) ? node.name : "Unnamed Device";
+            let newDevice: ISYNode | null = null;
+            let deviceTypeInfo = isyTypeToTypeName(isyDeviceType, deviceAddress);
+            let enabled = ("enabled" in node) ? node.enabled : false;
 
             if (enabled !== 'false') {
                 // Try fallback to new generic device identification when not specifically identified.
@@ -366,8 +357,8 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                     );
                 }
                 if (newDevice !== null) {
-                    var currentState = 0;
-                    var currentState_f = undefined;
+                    let currentState = 0;
+                    let currentState_f = undefined;
                     if ("property" in node && typeof node.property === "object") {
                         if (Array.isArray(node.property)) {
                             newDevice.properties = newDevice.properties || {}
@@ -395,16 +386,16 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     loadElkNodes(result: any) {
-        var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+        let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
         p.parseString(result, (err: Error, res: any) => {
             if (err) throw err;
 
             for (let nodes of res.areas.area.zone) {
-                var id = nodes.id;
-                var name = nodes.name;
-                var alarmDef = nodes.alarmDef;
+                let id = nodes.id;
+                let name = nodes.name;
+                let alarmDef = nodes.alarmDef;
 
-                var newDevice = new ElkAlarmSensor(
+                let newDevice = new ElkAlarmSensor(
                     this,
                     name,
                     1,
@@ -417,17 +408,17 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     loadElkInitialStatus(result: any) {
         assert(!!this.elkAlarmPanel, `Initializing ELK Alarm Panel Status, but it's not enabled`)
-        var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+        let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
         p.parseString(result, (err: Error, res: any) => {
             if (err) throw err;
 
-            var document = new xmldoc.XmlDocument(result);
+            let document = new xmldoc.XmlDocument(result);
             for (let nodes of res.ae) {
                 this.elkAlarmPanel!.setFromAreaUpdate(nodes);
             }
             for (let nodes of res.ze) {
-                var id = nodes.zone;
-                var zoneDevice = this.zoneMap[id];
+                let id = nodes.zone;
+                let zoneDevice = this.zoneMap[id];
                 if (zoneDevice !== null) {
                     zoneDevice.setFromZoneUpdate(nodes);
                     if (this.deviceIndex[zoneDevice.address] === null && zoneDevice.isPresent()) {
@@ -452,7 +443,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     guardian() {
-        var timeNow = Date.now()
+        let timeNow = Date.now()
         if (this.lastActivity && (timeNow - this.lastActivity) > 60000) {
             this.logger('ISY-JS: Guardian: Detected no activity in more then 60 seconds. Reinitializing web sockets');
             if (this.webSocket) {
@@ -474,25 +465,15 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     loadVariables(type: string, done: () => void) {
-        var that = this;
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
-        var retryCount = 0;
+        let retryCount = 0;
 
         // Note: occasionally this fails on the first call and we need to re-call
-        var getInitialValuesCB = (result: any | undefined, response: ServerResponse) => {
-            if (that.checkForFailure(response)) {
-                that.logger('ISY-JS: Error loading variables from isy: ' + result.message + '\nRetrying...');
-                retryCount++;
-                getVariableInitialValues();
-            } else {
-                that.setVariableValues(result, done);
-            }
-        };
 
-        var getVariableInitialValues = () => {
+        let getVariableInitialValues = () => {
             // Check if we've exceeded the retry count.
             if (retryCount > 2) {
                 throw new Error('Unable to load variables from the ISY after ' + retryCount + ' retries.');
@@ -500,25 +481,33 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
             // Load initial values
             restler.get(
-                that.protocol + '://' + that.address + '/rest/vars/get/' + type,
+                this.protocol + '://' + this.isyAddress + '/rest/vars/get/' + type,
                 options
-            ).on('complete', getInitialValuesCB);
+            ).on('complete', (result: any | undefined, response: ServerResponse) => {
+                if (this.checkForFailure(response)) {
+                    this.logger('ISY-JS: Error loading variables from isy: ' + result.message + '\nRetrying...');
+                    retryCount++;
+                    getVariableInitialValues();
+                } else {
+                    this.setVariableValues(result, done);
+                }
+            });
         };
 
         // Callback function to get the variable values after getting definitions
-        var loadVariablesCB = (result: any | undefined, response: ServerResponse) => {
-            if (that.checkForFailure(response)) {
-                that.logger('ISY-JS: Error loading variables from isy. Device likely doesn\'t have any variables defined. Safe to ignore.');
+        let loadVariablesCB = (result: any | undefined, response: ServerResponse) => {
+            if (this.checkForFailure(response)) {
+                this.logger('ISY-JS: Error loading variables from isy. Device likely doesn\'t have any variables defined. Safe to ignore.');
                 done();
             } else {
-                that.createVariables(type, result);
+                this.createVariables(type, result);
                 getVariableInitialValues();
             }
         };
 
         // Load definitions
         restler.get(
-            that.protocol + '://' + that.address + '/rest/vars/definitions/' + type,
+            this.protocol + '://' + this.isyAddress + '/rest/vars/definitions/' + type,
             options
         ).on('complete', loadVariablesCB);
 
@@ -529,7 +518,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     getVariable(type: string, id: string) {
-        var key = this.createVariableKey(type, id);
+        let key = this.createVariableKey(type, id);
         if (this.variableIndex[key] !== null && this.variableIndex[key] !== undefined) {
             return this.variableIndex[key];
         }
@@ -537,7 +526,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     handleISYVariableUpdate(id: string, type: string, value: number | undefined, ts: Date) {
-        var variableToUpdate = this.getVariable(type, id);
+        let variableToUpdate = this.getVariable(type, id);
         if (variableToUpdate !== null) {
             variableToUpdate.value = value;
             variableToUpdate.lastChanged = ts;
@@ -550,13 +539,13 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     createVariables(type: string, result: any) {
-        var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+        let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
         p.parseString(result, (err: Error, res: any) => {
             if (err) throw err;
 
             if (res.CList.e) {
                 for (let v of res.CList.e) {
-                    var newVariable = new ISYVariable(this, v.id, v.name, type);
+                    let newVariable = new ISYVariable(this, v.id, v.name, type);
 
                     // Don't push duplicate variables.
                     if (this.variableList.indexOf(newVariable) !== -1) {
@@ -575,19 +564,19 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     setVariableValues(result: any, callback: () => void) {
-        var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+        let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
         p.parseString(result, (err: Error, res: any) => {
             if (err) throw err;
 
             if (res.vars.var) {
                 for (let vNode of res.vars.var) {
-                    var id = vNode.id;
-                    var type = vNode.type;
-                    var init = parseInt(vNode.init);
-                    var value = parseInt(vNode.val);
-                    var ts = vNode.ts;
+                    let id = vNode.id;
+                    let type = vNode.type;
+                    let init = parseInt(vNode.init);
+                    let value = parseInt(vNode.val);
+                    let ts = vNode.ts;
 
-                    var variable = this.getVariable(type, id);
+                    let variable = this.getVariable(type, id);
 
                     if (variable !== null) {
                         variable.value = value;
@@ -601,15 +590,15 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     initialize(initializeCompleted: () => void) {
-        var that = this;
+        let that = this;
 
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
 
         restler.get(
-            this.protocol + '://' + this.address + '/rest/nodes',
+            this.protocol + '://' + this.isyAddress + '/rest/nodes',
             options
         ).on('complete', (result, response) => {
             if (that.checkForFailure(response)) {
@@ -627,7 +616,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 this.zoneMap = {};
 
                 // Parse XML response into native JS object.
-                var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+                let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
                 p.parseString(result, (err: Error, res: any) => {
                     if (err) throw err;
                     //this.logger(JSON.stringify(res, undefined, 3));
@@ -638,7 +627,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                     that.loadVariables(ISYDefs.variableType.state, () => {
                         if (that.elkEnabled) {
                             restler.get(
-                                that.protocol + '://' + that.address + '/rest/elk/get/topology',
+                                that.protocol + '://' + that.isyAddress + '/rest/elk/get/topology',
                                 options
                             ).on('complete', (result, response) => {
                                 if (that.checkForFailure(response)) {
@@ -647,7 +636,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                                 } else {
                                     that.loadElkNodes(result);
                                     restler.get(
-                                        that.protocol + '://' + that.address + '/rest/elk/get/status',
+                                        that.protocol + '://' + that.isyAddress + '/rest/elk/get/status',
                                         options
                                     ).on('complete', (result, response) => {
                                         if (that.checkForFailure(response)) {
@@ -684,19 +673,19 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     handleWebSocketMessage(data: WebSocket.Data) {
         //console.log('WEBSOCKET: ' + event.data)
         this.lastActivity = Date.now();
-        var p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
+        let p = new x2j.Parser({explicitArray: false, mergeAttrs: true});
         p.parseString(data, (err: Error, res: any) => {
             if (err) throw err;
 
             // Uncomment to print JSON to log for every event received.
             // this.logger(JSON.stringify(res, undefined, 3));
 
-            var evt = res.Event;
+            let evt = res.Event;
             if (typeof evt === "undefined" || typeof evt.control === "undefined") {
                 return;
             }
 
-            var eventControl = evt.control;
+            let eventControl = evt.control;
             if (eventControl.startsWith("GV")) {
                 eventControl = "GV";
             } // Catch Generic Values ( GV##, Usually Node Servers)
@@ -718,8 +707,8 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 case ISYDefs.props.climate.temperature:
                 case ISYDefs.props.climate.coolSetPoint:
                 case ISYDefs.props.climate.heatSetPoint:
-                    var uom = Number(evt.action.uom);
-                    var precision = evt.action.prec;
+                    let uom = Number(evt.action.uom);
+                    let precision = evt.action.prec;
                     actionValue = Number(actionValue);
 
                     if (precision == 1)
@@ -752,16 +741,16 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
                 case '_19':
                     if (actionValue === 2) {
-                        var aeElement = evt.eventInfo.ae;
+                        let aeElement = evt.eventInfo.ae;
                         if (aeElement !== null && this.elkAlarmPanel) {
                             if (this.elkAlarmPanel.setFromAreaUpdate(aeElement)) {
                                 this.nodeChangedHandler(this.elkAlarmPanel);
                             }
                         }
                     } else if (actionValue === 3) {
-                        var zeElement = evt.eventInfo.ze;
-                        var zoneId = zeElement.zone;
-                        var zoneDevice = this.zoneMap[zoneId];
+                        let zeElement = evt.eventInfo.ze;
+                        let zoneId = zeElement.zone;
+                        let zoneDevice = this.zoneMap[zoneId];
                         if (zoneDevice !== null) {
                             if (zoneDevice.setFromZoneUpdate(zeElement)) {
                                 this.nodeChangedHandler(zoneDevice);
@@ -772,18 +761,18 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
                 case '_1':
                     if (actionValue === 6) {
-                        var varNode = evt.eventInfo.var;
+                        let varNode = evt.eventInfo.var;
                         if (varNode !== null) {
-                            var id = varNode.id;
-                            var type = varNode.type;
-                            var val = parseInt(varNode.val);
-                            var year = parseInt(varNode.ts.substr(0, 4));
-                            var month = parseInt(varNode.ts.substr(4, 2));
-                            var day = parseInt(varNode.ts.substr(6, 2));
-                            var hour = parseInt(varNode.ts.substr(9, 2));
-                            var min = parseInt(varNode.ts.substr(12, 2));
-                            var sec = parseInt(varNode.ts.substr(15, 2));
-                            var timeStamp = new Date(year, month, day, hour, min, sec);
+                            let id = varNode.id;
+                            let type = varNode.type;
+                            let val = parseInt(varNode.val);
+                            let year = parseInt(varNode.ts.substr(0, 4));
+                            let month = parseInt(varNode.ts.substr(4, 2));
+                            let day = parseInt(varNode.ts.substr(6, 2));
+                            let hour = parseInt(varNode.ts.substr(9, 2));
+                            let min = parseInt(varNode.ts.substr(12, 2));
+                            let sec = parseInt(varNode.ts.substr(15, 2));
+                            let timeStamp = new Date(year, month, day, hour, min, sec);
 
                             this.handleISYVariableUpdate(id, type, val, timeStamp);
                         }
@@ -797,8 +786,8 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                     //     // [     ZW029_1]       ST   0 (uom=11 prec=0)
                     //     // [     ZW029_1]       ST   0 (uom=11 prec=0)
                     //     // [     ZW029_1]    ALARM  24 (uom=15 prec=0)
-                    //     // var inputString = "[     ZW029_1]   USRNUM   1 (uom=70 prec=0)"
-                    //     var inputString = evt.eventInfo.replace(/\s\s+/g, ' ');
+                    //     // let inputString = "[     ZW029_1]   USRNUM   1 (uom=70 prec=0)"
+                    //     let inputString = evt.eventInfo.replace(/\s\s+/g, ' ');
                     //     const nodeName = inputString.split(']')[0].split('[')[1].trim();
                     //     const nodeValueString = inputString.split(']')[1].split('(')[0].trim();
                     //     const nodeEvent = nodeValueString.split(' ')[0];
@@ -820,11 +809,10 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     initializeWebSocket() {
-        var that = this;
-        var auth = 'Basic ' + Buffer.from(this.userName + ':' + this.password).toString('base64');
-        that.logger('Connecting to: ' + this.wsprotocol + '://' + this.address + '/rest/subscribe');
+        let auth = 'Basic ' + Buffer.from(this.userName + ':' + this.password).toString('base64');
+        this.logger('Connecting to: ' + this.wsprotocol + '://' + this.isyAddress + '/rest/subscribe');
         this.webSocket = new WebSocket(
-            this.wsprotocol + '://' + this.address + '/rest/subscribe', ['ISYSUB'], {
+            this.wsprotocol + '://' + this.isyAddress + '/rest/subscribe', ['ISYSUB'], {
                 headers: {
                     'Origin': 'com.universal-devices.websockets.index.ts',
                     'Authorization': auth
@@ -834,9 +822,9 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
         this.lastActivity = Date.now();
 
         this.webSocket.on('message', (event: WebSocket.Data) => {
-            that.handleWebSocketMessage(event);
+            this.handleWebSocketMessage(event);
         }).on('error', (err: Error) => {
-            that.logger('ISY-JS: Error while contacting ISY: ' + err);
+            this.logger('ISY-JS: Error while contacting ISY: ' + err);
             throw new Error('Error calling ISY' + err);
         }).on('pong', () => {
             this.lastActivity = Date.now()
@@ -852,7 +840,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     handleISYStateUpdate(address: string, state: string | number, formatted: string | number | undefined = undefined) {
-        var deviceToUpdate = this.deviceIndex[address];
+        let deviceToUpdate = this.deviceIndex[address];
         if (deviceToUpdate !== undefined && deviceToUpdate !== null && deviceToUpdate instanceof ISYBaseDevice) {
             if (deviceToUpdate.handleIsyUpdate(state, formatted)) {
                 deviceToUpdate.updateType = ISYDefs.updateType.generic;
@@ -860,7 +848,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
                 if (this.scenesInDeviceList) {
                     // Inefficient, we could build a reverse index (device->scene list)
                     // but device list is relatively small
-                    for (var index = 0; index < this.sceneList.length; index++) {
+                    for (let index = 0; index < this.sceneList.length; index++) {
                         if (this.sceneList[index].isDeviceIncluded(deviceToUpdate)) {
                             if (this.sceneList[index].reclalculateState()) {
                                 deviceToUpdate.updateType = ISYDefs.updateType.generic;
@@ -884,9 +872,9 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     sendISYCommand(path: string, handleResult: ISYCallback) {
-        var uriToUse = this.protocol + '://' + this.address + '/rest/' + path;
+        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/' + path;
         this.logger('ISY-JS: Sending ISY command...' + uriToUse);
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
@@ -900,12 +888,12 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     sendRestCommand(deviceAddress: string, command: string, parameter: any | null, handleResult: ISYCallback) {
-        var uriToUse = this.protocol + '://' + this.address + '/rest/nodes/' + deviceAddress + '/cmd/' + command;
+        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/nodes/' + deviceAddress + '/cmd/' + command;
         if (parameter !== null) {
             uriToUse += '/' + parameter;
         }
         this.logger('ISY-JS: Sending command...' + uriToUse);
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
@@ -919,28 +907,28 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
     }
 
     sendGetVariable(id: string, type: string, handleResult: ISYGetVariableCallback) {
-        var uriToUse = this.protocol + '://' + this.address + '/rest/vars/get/' + type + '/' + id;
+        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/vars/get/' + type + '/' + id;
         this.logger('ISY-JS: Sending ISY command...' + uriToUse);
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
         restler.get(uriToUse, options).on('complete', (result: any, response: ServerResponse) => {
             if (response && response.statusCode === 200) {
-                var document = new xmldoc.XmlDocument(result);
+                let document = new xmldoc.XmlDocument(result);
                 const valChild = document.childNamed('val')
-                var val = valChild && parseInt(valChild.val);
+                let val = valChild && parseInt(valChild.val);
                 const initChild = document.childNamed('init')
-                var init = initChild && parseInt(initChild.val);
+                let init = initChild && parseInt(initChild.val);
                 handleResult(val, init);
             }
         });
     }
 
     sendSetVariable(id: string, type: string, value: string, handleResult: ISYCallback) {
-        var uriToUse = this.protocol + '://' + this.address + '/rest/vars/set/' + type + '/' + id + '/' + value;
+        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/vars/set/' + type + '/' + id + '/' + value;
         this.logger('ISY-JS: Sending ISY command...' + uriToUse);
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
@@ -955,9 +943,9 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 
     runProgram(id: string, command: string, handleResult: ISYCallback) {
         // Possible Commands: run|runThen|runElse|stop|enable|disable|enableRunAtStartup|disableRunAtStartup
-        var uriToUse = this.protocol + '://' + this.address + '/rest/programs/' + id + '/' + command;
+        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/programs/' + id + '/' + command;
         this.logger('ISY-JS: Sending program command...' + uriToUse);
-        var options = {
+        let options = {
             username: this.userName,
             password: this.password
         };
@@ -988,6 +976,7 @@ export class ISY implements ISYRestCommandSender, ISYSetVariableSender, ISYComma
 }
 
 export {
+    ISYFanDeviceState,
     ISYCallback, ISYDeviceInfo, ISYNode,
     ISYBaseDevice, ISYDeviceType,
     ISYDoorWindowDevice,

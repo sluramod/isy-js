@@ -5,12 +5,12 @@ export declare class ISYScene implements ISYNode {
     isy: ISYRestCommandSender;
     name: string;
     address: string;
+    childDevices: ISYBaseDevice[];
     deviceType: ISYDeviceType;
     isyType: ISYType;
     connectionType: ISYConnectionType;
     batteryOperated: boolean;
     deviceFriendlyName: string;
-    childDevices: ISYBaseDevice[];
     lastChanged: Date;
     constructor(isy: ISYRestCommandSender, name: string, address: string, childDevices: ISYBaseDevice[]);
     getCurrentLightState(): boolean;

@@ -17,27 +17,31 @@ export type ISYConnectionType = string
 //
 export class ISYBaseDevice implements ISYNode {
 
-    isy: ISYRestCommandSender
-    name: string
-    address: string
-    isyType: ISYType
-    deviceType: ISYDeviceType
     batteryOperated: boolean
     connectionType: ISYConnectionType
     deviceFriendlyName: string
-    currentState: number
-    currentState_f: string | number
     lastChanged: Date
     updateType: string | null
     updatedProperty: string | null
     properties: ISYNodeProperties
 
-    constructor(isy: ISYRestCommandSender, name: string, address: string, isyType: ISYType, deviceType: ISYDeviceType, deviceFamily: ISYConnectionType) {
-        this.isy = isy;
-        this.name = name;
-        this.address = address;
-        this.isyType = isyType;
-        this.deviceType = deviceType;
+    get currentState(): number {
+        return this.properties['currentState']
+    }
+
+    set currentState(value: number) {
+        this.properties['currentState'] = value;
+    }
+
+    get currentState_f(): number | string {
+        return this.properties['currentState_f']
+    }
+
+    set currentState_f(value: number | string) {
+        this.properties['currentState_f'] = value;
+    }
+
+    constructor(public isy: ISYRestCommandSender, public name: string, public address: string, public isyType: ISYType, public deviceType: ISYDeviceType, deviceFamily: ISYConnectionType) {
         this.batteryOperated = false;
         this.connectionType = deviceFamily;
         this.deviceFriendlyName = 'Generic Device';
@@ -75,130 +79,6 @@ export class ISYBaseDevice implements ISYNode {
     getGenericProperty(prop:string) {
         return (this.properties[prop]);
     }
-
-////////////////////////////////////////////////////////////////////////
-// LIGHTS
-
-    getCurrentLightState() {
-        return this.currentState > 0;
-    }
-
-    getCurrentLightDimState() {
-        return Math.floor((this.currentState * ISYDefs.props.dimLevelMaximum) / ISYDefs.props.isyDimLevelMaximum);
-    }
-
-    sendLightCommand(command:string|boolean|number, resultHandler:ISYCallback) {
-        // command can be passed as an ISY command (DON/DOF/DFOF/DFON), a number 0/100, or a boolean of the current light state to toggle a light
-        var cmd = ISYDefs.cmd.lightOn;
-        if (typeof command === "boolean") {
-            cmd = (command) ? ISYDefs.cmd.lightOn : ISYDefs.cmd.lightOff;
-        } else if (typeof command === "number") {
-            cmd = (command > 0) ? ISYDefs.cmd.lightOn : ISYDefs.cmd.lightOff;
-        } else {
-            cmd = command;
-        }
-        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
-    }
-
-    sendLightDimCommand(dimLevel:number, resultHandler:ISYCallback) {
-        var isyDimLevel = Math.ceil(dimLevel * ISYDefs.props.isyDimLevelMaximum / ISYDefs.props.dimLevelMaximum);
-        this.isy.sendRestCommand(this.address, ISYDefs.cmd.lightOn, isyDimLevel, resultHandler);
-    }
-
-////////////////////////////////////////////////////////////////////////
-// LOCKS
-
-    getCurrentNonSecureLockState() {
-        return (this.currentState != ISYDefs.states.lockUnlocked);
-    }
-
-    getCurrentSecureLockState() {
-        return (this.currentState > 0);
-    }
-
-    sendNonSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
-        if (lockState) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockLock, null, resultHandler);
-        } else {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockUnlock, null, resultHandler);
-        }
-    }
-
-    sendSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
-        if (lockState) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterLock, resultHandler);
-        } else {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterUnlock, resultHandler);
-        }
-    }
-
-////////////////////////////////////////////////////////////////////////
-// DOOR/WINDOW SENSOR
-
-    getCurrentDoorWindowState() {
-        return this.currentState !== ISYDefs.states.doorWindowClosed;
-    }
-
-////////////////////////////////////////////////////////////////////////
-// OUTLETS
-
-    getCurrentOutletState() {
-        return this.currentState > 0;
-    }
-
-    sendOutletCommand(command:boolean|string, resultHandler:ISYCallback) {
-        // command can be passed as an ISY command (DON/DOF), or a boolean of the current light state to toggle
-        var cmd = ISYDefs.cmd.outletOn;
-        if (typeof command === "boolean") {
-            cmd = (command) ? ISYDefs.cmd.outletOn : ISYDefs.cmd.outletOff;
-        } else {
-            cmd = command;
-        }
-        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
-    }
-
-////////////////////////////////////////////////////////////////////////
-// MOTION SENSORS
-
-    getCurrentMotionSensorState() {
-        return (this.currentState === ISYDefs.states.motionSensorOn);
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-// LEAK Sensor
-
-// TODO: Implement Status Check for Leak Detection Device
-
-////////////////////////////////////////////////////////////////////////
-// FANS MOTORS
-
-    getCurrentFanState() {
-        if (this.currentState === 0) {
-            return "Off";
-        } else if (this.currentState == ISYDefs.cmd.fanParameterLow) {
-            return "Low";
-        } else if (this.currentState == ISYDefs.cmd.fanParameterMedium) {
-            return "Medium";
-        } else if (this.currentState == ISYDefs.cmd.fanParameterHigh) {
-            return "High";
-        } else {
-            assert(false, 'Unexpected fan state: ' + this.currentState);
-        }
-    }
-
-    sendFanCommand(fanState:"Off"|"Low"|"Medium"|"High", resultHandler:ISYCallback) {
-        if (fanState === "Off") {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanOff, null, resultHandler);
-        } else if (fanState == "Low") {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterLow, resultHandler);
-        } else if (fanState == "Medium") {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterMedium, resultHandler);
-        } else if (fanState == "High") {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterHigh, resultHandler);
-        } else {
-            assert(false, 'Unexpected fan level: ' + fanState);
-        }
-    }
 }
 
 
@@ -214,6 +94,36 @@ export class ISYLightDevice extends ISYBaseDevice {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
         this.isDimmable = (deviceTypeInfo.deviceType == "dimmableLight");
     }
+
+////////////////////////////////////////////////////////////////////////
+// LIGHTS
+
+    getCurrentLightState() {
+        return this.currentState > 0;
+    }
+
+    getCurrentLightDimState() {
+        return Math.floor((this.currentState * ISYDefs.props.dimLevelMaximum) / ISYDefs.props.isyDimLevelMaximum);
+    }
+
+    sendLightCommand(command:string|boolean|number, resultHandler:ISYCallback) {
+        // command can be passed as an ISY command (DON/DOF/DFOF/DFON), a number 0/100, or a boolean of the current light state to toggle a light
+        let cmd = ISYDefs.cmd.lightOn;
+        if (typeof command === "boolean") {
+            cmd = (command) ? ISYDefs.cmd.lightOn : ISYDefs.cmd.lightOff;
+        } else if (typeof command === "number") {
+            cmd = (command > 0) ? ISYDefs.cmd.lightOn : ISYDefs.cmd.lightOff;
+        } else {
+            cmd = command;
+        }
+        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
+    }
+
+    sendLightDimCommand(dimLevel:number, resultHandler:ISYCallback) {
+        let isyDimLevel = Math.ceil(dimLevel * ISYDefs.props.isyDimLevelMaximum / ISYDefs.props.dimLevelMaximum);
+        this.isy.sendRestCommand(this.address, ISYDefs.cmd.lightOn, isyDimLevel, resultHandler);
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -244,6 +154,34 @@ export class ISYLockDevice extends ISYBaseDevice {
             assert(false, 'Should not ever have lock which is not one of the known lock types');
         }
     }
+
+////////////////////////////////////////////////////////////////////////
+// LOCKS
+
+    getCurrentNonSecureLockState() {
+        return (this.currentState != ISYDefs.states.lockUnlocked);
+    }
+
+    getCurrentSecureLockState() {
+        return (this.currentState > 0);
+    }
+
+    sendNonSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
+        if (lockState) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockLock, null, resultHandler);
+        } else {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockUnlock, null, resultHandler);
+        }
+    }
+
+    sendSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
+        if (lockState) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterLock, resultHandler);
+        } else {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterUnlock, resultHandler);
+        }
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -254,6 +192,13 @@ export class ISYDoorWindowDevice extends ISYBaseDevice {
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // DOOR/WINDOW SENSOR
+    getCurrentDoorWindowState() {
+        return this.currentState !== ISYDefs.states.doorWindowClosed;
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -264,6 +209,14 @@ export class ISYMotionSensorDevice extends ISYBaseDevice {
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // MOTION SENSORS
+    getCurrentMotionSensorState() {
+        return (this.currentState === ISYDefs.states.motionSensorOn);
+    }
+
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -274,12 +227,17 @@ export class ISYLeakSensorDevice extends ISYBaseDevice {
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
     }
+
+////////////////////////////////////////////////////////////////////////
+// LEAK Sensor
+
+// TODO: Implement Status Check for Leak Detection Device
+
 }
 
 ////////////////////////////////////////////////////////////////////////
 // ISYRemoteDevice
 //
-
 export class ISYRemoteDevice extends ISYBaseDevice {
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
@@ -294,16 +252,76 @@ export class ISYOutletDevice extends ISYBaseDevice {
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // OUTLETS
+    getCurrentOutletState() {
+        return this.currentState > 0;
+    }
+
+    sendOutletCommand(command:boolean|string, resultHandler:ISYCallback) {
+        // command can be passed as an ISY command (DON/DOF), or a boolean of the current light state to toggle
+        let cmd = ISYDefs.cmd.outletOn;
+        if (typeof command === "boolean") {
+            cmd = (command) ? ISYDefs.cmd.outletOn : ISYDefs.cmd.outletOff;
+        } else {
+            cmd = command;
+        }
+        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////
 // ISYFanDevice
 //
 
+export enum ISYFanDeviceState {
+    OFF = "off",
+    LOW = "low",
+    MEDIUM = "medium",
+    HIGH = "high"
+}
+
 export class ISYFanDevice extends ISYBaseDevice {
+
+    deviceType: "fan"
+
     constructor(isy:ISYRestCommandSender, name:string, address:string, deviceTypeInfo:ISYDeviceInfo) {
         super(isy, name, address, deviceTypeInfo.type, deviceTypeInfo.deviceType, deviceTypeInfo.connectionType);
     }
+
+    ////////////////////////////////////////////////////////////////////////
+    // FANS MOTORS
+    getCurrentFanState():ISYFanDeviceState {
+        if (this.currentState === 0) {
+            return ISYFanDeviceState.OFF;
+        } else if (this.currentState == ISYDefs.cmd.fanParameterLow) {
+            return ISYFanDeviceState.LOW;
+        } else if (this.currentState == ISYDefs.cmd.fanParameterMedium) {
+            return ISYFanDeviceState.MEDIUM;
+        } else if (this.currentState == ISYDefs.cmd.fanParameterHigh) {
+            return ISYFanDeviceState.HIGH;
+        } else {
+            assert(false, 'Unexpected fan state: ' + this.currentState);
+            throw 'Unexpected fan state: ' + this.currentState;
+        }
+    }
+
+    sendFanCommand(fanState:ISYFanDeviceState, resultHandler:ISYCallback) {
+        if (fanState === ISYFanDeviceState.OFF) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanOff, null, resultHandler);
+        } else if (fanState == ISYFanDeviceState.LOW) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterLow, resultHandler);
+        } else if (fanState == ISYFanDeviceState.MEDIUM) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterMedium, resultHandler);
+        } else if (fanState == ISYFanDeviceState.HIGH) {
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterHigh, resultHandler);
+        } else {
+            assert(false, 'Unexpected fan level: ' + fanState);
+        }
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////
