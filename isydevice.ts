@@ -45,12 +45,12 @@ export class ISYBaseDevice implements ISYNode {
         this.batteryOperated = false;
         this.connectionType = deviceFamily;
         this.deviceFriendlyName = 'Generic Device';
-        this.currentState = 0;
-        this.currentState_f = 0;
         this.lastChanged = new Date();
         this.updateType = null;
         this.updatedProperty = null;
         this.properties = {}
+        this.currentState = 0;
+        this.currentState_f = 0;
     }
 
     handleIsyUpdate(actionValue:string|number, formatted:string|number|undefined = undefined) {
