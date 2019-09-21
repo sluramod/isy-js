@@ -287,6 +287,14 @@
     "batteryOperated": false
   },
   {
+    "type": "2.42.69.0",
+    "address": "",
+    "name": "(2477S) Dual Band SwitchLinc On/Off Switch v.45",
+    "deviceType": "Light",
+    "connectionType": "Insteon Wireless",
+    "batteryOperated": false
+  },
+  {
     "type": "2.55.70.0",
     "address": "",
     "name": "(2635-222) Insteon On/Off Module",
@@ -324,6 +332,22 @@
     "name": "(2487S) Dual Band KeypadLinc Relay v.41",
     "deviceType": "light",
     "connectionType": "Insteon Wireless",
+    "batteryOperated": false
+  },
+  {
+    "type": "2.44.68.0",
+    "address": "",
+    "name": "(2487S) Dual Band KeypadLinc Relay v.44",
+    "deviceType": "light",
+    "connectionType": "Insteon Wireless",
+    "batteryOperated": false
+  },
+  {
+    "type": "2.47.72.0",
+    "address": "",
+    "name": "(2443-222) Micro Module On/Off v.48",
+    "deviceType": "outlet",
+    "connectionType": "Insteon Wired",
     "batteryOperated": false
   },
   {

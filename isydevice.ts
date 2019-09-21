@@ -3,6 +3,13 @@ import * as ISYDefs from './isydefs.json'
 import {ISYRestCommandSender} from "./index";
 import {ISYCallback, ISYDeviceInfo, ISYNode, ISYNodeProperties} from "./isynode";
 
+import * as ISYDeviceTypesDefs from './isydevicetypes.json'
+
+export const ISYDeviceTypes:Map<string, any> = ISYDeviceTypesDefs.reduce(function(map:any, obj:any) {
+    map.set(obj.type, obj);
+    return map;
+}, new Map())
+
 export type ISYDeviceType = "lock" | "secureLock" | "light" | "dimmableLight" | "outlet" | "fan" | "unknown" |
     "doorWindowSensor" | "alarmDoorWindowSensor" | "coSensor" | "alarmPanel" | "motionSensor" | "leakSensor" |
     "remote" | "scene" | "thermostat" | "nodeServerNode"
@@ -44,7 +51,8 @@ export class ISYBaseDevice implements ISYNode {
     constructor(public isy: ISYRestCommandSender, public name: string, public address: string, public isyType: ISYType, public deviceType: ISYDeviceType, deviceFamily: ISYConnectionType) {
         this.batteryOperated = false;
         this.connectionType = deviceFamily;
-        this.deviceFriendlyName = 'Generic Device';
+        const deviceInfo = ISYDeviceTypes.get(isyType)
+        this.deviceFriendlyName = deviceInfo ? deviceInfo.name: 'Generic Device';
         this.lastChanged = new Date();
         this.updateType = null;
         this.updatedProperty = null;

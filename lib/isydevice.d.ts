@@ -1,5 +1,6 @@
 import { ISYRestCommandSender } from "./index";
 import { ISYCallback, ISYDeviceInfo, ISYNode, ISYNodeProperties } from "./isynode";
+export declare const ISYDeviceTypes: Map<string, any>;
 export declare type ISYDeviceType = "lock" | "secureLock" | "light" | "dimmableLight" | "outlet" | "fan" | "unknown" | "doorWindowSensor" | "alarmDoorWindowSensor" | "coSensor" | "alarmPanel" | "motionSensor" | "leakSensor" | "remote" | "scene" | "thermostat" | "nodeServerNode";
 export declare type ISYType = string;
 export declare type ISYConnectionType = string;
