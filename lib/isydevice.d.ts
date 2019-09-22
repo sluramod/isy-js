@@ -17,12 +17,14 @@ export declare class ISYBaseDevice implements ISYNode {
     updateType: string | null;
     updatedProperty: string | null;
     properties: ISYNodeProperties;
+    updateRequested: boolean;
     currentState: number;
     currentState_f: number | string;
     constructor(isy: ISYRestCommandSender, name: string, address: string, isyType: ISYType, deviceType: ISYDeviceType, deviceFamily: ISYConnectionType);
     handleIsyUpdate(actionValue: string | number, formatted?: string | number | undefined): boolean;
     handleIsyGenericPropertyUpdate(actionValue: string | number, prop: string, formatted?: string | number | undefined): boolean;
     getGenericProperty(prop: string): any;
+    requestUpdate(callback: Function): () => void;
 }
 export declare class ISYLightDevice extends ISYBaseDevice {
     isDimmable: boolean;

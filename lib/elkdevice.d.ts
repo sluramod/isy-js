@@ -43,7 +43,9 @@ export declare class ELKAlarmPanelDevice implements ISYNode {
     alarmState: ELKAlarmPanelDeviceAlarmState;
     alarmTripState: ELKAlarmPanelDeviceAlarmTripState;
     lastChanged: Date;
+    updateRequested: boolean;
     constructor(isy: ISYCommandSender, area: string | number);
+    requestUpdate(callback: Function): () => void;
     sendSetAlarmModeCommand(alarmState: ELKAlarmPanelDeviceAlarmMode, handleResult: ISYCallback): void;
     clearAllBypasses(handleResult: ISYCallback): void;
     getAlarmStatusAsText(): string;
@@ -80,7 +82,9 @@ export declare class ElkAlarmSensor implements ISYNode {
     physicalState: ElkAlarmSensorPhysicalState;
     logicalState: ElkAlarmSensorLogicalState;
     lastChanged: Date;
+    updateRequested: boolean;
     constructor(isy: ISYCommandSender, name: string, area: string | number, zone: string | number, deviceType: ISYDeviceType);
+    requestUpdate(callback: Function): () => void;
     sendBypassToggleCommand(handleResult: ISYCallback): void;
     getPhysicalState(): ElkAlarmSensorPhysicalState;
     getLogicalState(): ElkAlarmSensorLogicalState;

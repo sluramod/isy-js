@@ -52,6 +52,7 @@ export class ELKAlarmPanelDevice implements ISYNode {
     alarmTripState: ELKAlarmPanelDeviceAlarmTripState
 
     lastChanged: Date
+    updateRequested:boolean
 
     constructor(isy: ISYCommandSender, area: string | number) {
         this.isy = isy;
@@ -67,18 +68,28 @@ export class ELKAlarmPanelDevice implements ISYNode {
         this.batteryOperated = false;
         this.voltage = 71;
         this.lastChanged = new Date();
+        this.updateRequested = false
+    }
+
+    requestUpdate(callback:Function) {
+        const that = this
+        this.updateRequested = true
+        return function () {
+            that.updateRequested = false
+            callback()
+        }
     }
 
     sendSetAlarmModeCommand(alarmState: ELKAlarmPanelDeviceAlarmMode, handleResult: ISYCallback) {
         if (alarmState == ELKAlarmPanelDeviceAlarmMode.ALARM_MODE_DISARMED) {
-            this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/disarm', handleResult);
+            this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/disarm', this.requestUpdate(handleResult));
         } else {
-            this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/arm?armType=' + alarmState, handleResult);
+            this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/arm?armType=' + alarmState, this.requestUpdate(handleResult));
         }
     }
 
     clearAllBypasses(handleResult: ISYCallback) {
-        this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/unbypass', handleResult);
+        this.isy.sendISYCommand('elk/area/' + this.area + '/cmd/unbypass', this.requestUpdate(handleResult));
     }
 
     getAlarmStatusAsText() {
@@ -165,6 +176,7 @@ export class ElkAlarmSensor implements ISYNode {
     logicalState: ElkAlarmSensorLogicalState
 
     lastChanged: Date
+    updateRequested:boolean
 
     constructor(isy: ISYCommandSender, name: string, area: string | number, zone: string | number, deviceType: ISYDeviceType) {
         this.isy = isy;
@@ -181,8 +193,17 @@ export class ElkAlarmSensor implements ISYNode {
         this.lastChanged = new Date();
     }
 
+    requestUpdate(callback:Function) {
+        const that = this
+        this.updateRequested = true
+        return function () {
+            that.updateRequested = false
+            callback()
+        }
+    }
+
     sendBypassToggleCommand(handleResult: ISYCallback) {
-        this.isy.sendISYCommand('elk/zone/' + this.zone + '/cmd/toggle/bypass', handleResult);
+        this.isy.sendISYCommand('elk/zone/' + this.zone + '/cmd/toggle/bypass', this.requestUpdate(handleResult));
     }
 
     getPhysicalState() {

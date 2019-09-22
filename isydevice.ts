@@ -32,6 +32,8 @@ export class ISYBaseDevice implements ISYNode {
     updatedProperty: string | null
     properties: ISYNodeProperties
 
+    updateRequested:boolean
+
     get currentState(): number {
         return this.properties['currentState']
     }
@@ -59,6 +61,7 @@ export class ISYBaseDevice implements ISYNode {
         this.properties = {}
         this.currentState = 0;
         this.currentState_f = 0;
+        this.updateRequested = false
     }
 
     handleIsyUpdate(actionValue:string|number, formatted:string|number|undefined = undefined) {
@@ -86,6 +89,15 @@ export class ISYBaseDevice implements ISYNode {
 
     getGenericProperty(prop:string) {
         return (this.properties[prop]);
+    }
+
+    requestUpdate(callback:Function) {
+        const that = this
+        this.updateRequested = true
+        return function () {
+            that.updateRequested = false
+            callback()
+        }
     }
 }
 
@@ -124,12 +136,12 @@ export class ISYLightDevice extends ISYBaseDevice {
         } else {
             cmd = command;
         }
-        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
+        this.isy.sendRestCommand(this.address, cmd, null, this.requestUpdate(resultHandler));
     }
 
     sendLightDimCommand(dimLevel:number, resultHandler:ISYCallback) {
         let isyDimLevel = Math.ceil(dimLevel * ISYDefs.props.isyDimLevelMaximum / ISYDefs.props.dimLevelMaximum);
-        this.isy.sendRestCommand(this.address, ISYDefs.cmd.lightOn, isyDimLevel, resultHandler);
+        this.isy.sendRestCommand(this.address, ISYDefs.cmd.lightOn, isyDimLevel, this.requestUpdate(resultHandler));
     }
 
 }
@@ -176,17 +188,17 @@ export class ISYLockDevice extends ISYBaseDevice {
 
     sendNonSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
         if (lockState) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockLock, null, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockLock, null, this.requestUpdate(resultHandler));
         } else {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockUnlock, null, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.lockUnlock, null, this.requestUpdate(resultHandler));
         }
     }
 
     sendSecureLockCommand(lockState:boolean, resultHandler:ISYCallback) {
         if (lockState) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterLock, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterLock, this.requestUpdate(resultHandler));
         } else {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterUnlock, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.secureLockBase, ISYDefs.cmd.secureLockParameterUnlock, this.requestUpdate(resultHandler));
         }
     }
 
@@ -275,7 +287,7 @@ export class ISYOutletDevice extends ISYBaseDevice {
         } else {
             cmd = command;
         }
-        this.isy.sendRestCommand(this.address, cmd, null, resultHandler);
+        this.isy.sendRestCommand(this.address, cmd, null, this.requestUpdate(resultHandler));
     }
 
 }
@@ -318,13 +330,13 @@ export class ISYFanDevice extends ISYBaseDevice {
 
     sendFanCommand(fanState:ISYFanDeviceState, resultHandler:ISYCallback) {
         if (fanState === ISYFanDeviceState.OFF) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanOff, null, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanOff, null, this.requestUpdate(resultHandler));
         } else if (fanState == ISYFanDeviceState.LOW) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterLow, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterLow, this.requestUpdate(resultHandler));
         } else if (fanState == ISYFanDeviceState.MEDIUM) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterMedium, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterMedium, this.requestUpdate(resultHandler));
         } else if (fanState == ISYFanDeviceState.HIGH) {
-            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterHigh, resultHandler);
+            this.isy.sendRestCommand(this.address, ISYDefs.cmd.fanBase, ISYDefs.cmd.fanParameterHigh, this.requestUpdate(resultHandler));
         } else {
             assert(false, 'Unexpected fan level: ' + fanState);
         }

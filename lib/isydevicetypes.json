@@ -339,7 +339,7 @@
         "address": "",
         "name": "(2487S) Dual Band KeypadLinc Relay v.44",
         "deviceType": "light",
-        "connectionType": "Insteon Wired",
+        "connectionType": "Insteon Wireless",
         "batteryOperated": false
     },
     {
