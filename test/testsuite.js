@@ -188,7 +188,7 @@ function setVariableFailureMode(shouldFail, done) {
 
 // Used to send set to on command for sensors. Doesn't work on real ISY.
 function sendServerOnCommand(isy, deviceAddress, done) {
-    isy.sendRestCommand(deviceAddress, 'DON', null, function() { done(); });
+    isy.sendRestCommand(deviceAddress, '/cmd/DON', null, function() { done(); });
 }
 
 function sendServerZoneCommand(isy, zoneId, command, done) {
@@ -505,14 +505,14 @@ describe('ISY Device change notifications', function() {
     });
     describe('Elk Sensors', function() {
         it('Logical state change when you open then close', function(done) {
-            runElkZoneTest(isy, "1", "OPEN", 1, 2, 'getLogicalState', function() {
-                runElkZoneTest(isy, "1", "CLOSE", 1, 0, 'getLogicalState', done);
+            runElkZoneTest(isy, "1", "/cmd/OPEN", 1, 2, 'getLogicalState', function() {
+                runElkZoneTest(isy, "1", "/cmd/CLOSE", 1, 0, 'getLogicalState', done);
             });
 
         });
         it('Physical state change when you open then close', function(done) {
-            runElkZoneTest(isy, "1", "OPEN", 1, 1, 'getPhysicalState', function() {
-                runElkZoneTest(isy, "1", "CLOSE", 1, 2, 'getPhysicalState', done);
+            runElkZoneTest(isy, "1", "/cmd/OPEN", 1, 1, 'getPhysicalState', function() {
+                runElkZoneTest(isy, "1", "cmd/CLOSE", 1, 2, 'getPhysicalState', done);
             });
         });
     });

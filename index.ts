@@ -43,7 +43,7 @@ function isyTypeToTypeName(isyType: ISYType, address: string): ISYDeviceInfo | n
 }
 
 export interface HasISYAddress {
-    isyAddress:string
+    isyAddress: string
 }
 
 export interface ISYRestCommandSender extends HasISYAddress {
@@ -808,6 +808,13 @@ export class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetVariableS
         });
     }
 
+    clearPingInterval() {
+        if (typeof this.pingInterval !== 'undefined' && this.pingInterval != null) {
+            clearInterval(this.pingInterval!)
+            this.pingInterval = null
+        }
+    }
+
     initializeWebSocket() {
         let auth = 'Basic ' + Buffer.from(this.userName + ':' + this.password).toString('base64');
         this.logger('Connecting to: ' + this.wsprotocol + '://' + this.isyAddress + '/rest/subscribe');
@@ -829,13 +836,11 @@ export class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetVariableS
         }).on('pong', () => {
             this.lastActivity = Date.now()
         }).on('close', () => {
-            if (typeof this.pingInterval !== 'undefined' && this.pingInterval != null) {
-                clearInterval(this.pingInterval!)
-                this.pingInterval = null
-            }
+            this.clearPingInterval()
         })
+        this.clearPingInterval()
         this.pingInterval = setInterval(() => {
-            this.webSocket!.ping()
+            this.webSocket!.ping('ping')
         }, 10000);
     }
 
@@ -888,7 +893,12 @@ export class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetVariableS
     }
 
     sendRestCommand(deviceAddress: string, command: string, parameter: any | null, handleResult: ISYCallback) {
-        let uriToUse = this.protocol + '://' + this.isyAddress + '/rest/nodes/' + deviceAddress + '/cmd/' + command;
+        let uriToUse
+        if (command === 'status') {
+            uriToUse = this.protocol + '://' + this.isyAddress + '/rest/status/' + deviceAddress;
+        } else {
+            uriToUse = this.protocol + '://' + this.isyAddress + '/rest/nodes/' + deviceAddress + command;
+        }
         if (parameter !== null) {
             uriToUse += '/' + parameter;
         }

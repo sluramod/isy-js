@@ -81,6 +81,7 @@ export declare class ISY implements HasISYAddress, ISYRestCommandSender, ISYSetV
     setVariableValues(result: any, callback: () => void): void;
     initialize(initializeCompleted: () => void): void;
     handleWebSocketMessage(data: WebSocket.Data): void;
+    clearPingInterval(): void;
     initializeWebSocket(): void;
     handleISYStateUpdate(address: string, state: string | number, formatted?: string | number | undefined): void;
     handleISYGenericPropertyUpdate(address: string, state: string | number, prop: string, formatted?: string | number | undefined): void;
